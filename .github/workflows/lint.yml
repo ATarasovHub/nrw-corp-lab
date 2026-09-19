@@ -24,6 +24,12 @@ jobs:
           Install-Module -Name PSScriptAnalyzer -Scope CurrentUser -Force
           Get-Module -ListAvailable PSScriptAnalyzer | Select-Object Name, Version
 
+      - name: Show versions
+        shell: pwsh
+        run: |
+          $PSVersionTable.PSVersion.ToString()
+          (Get-Module -ListAvailable PSScriptAnalyzer).Version.ToString()
+
       - name: Run PSScriptAnalyzer
         shell: pwsh
         run: |
@@ -39,6 +45,7 @@ jobs:
               } catch {
                   $crashes.Add($relative)
                   Write-Output "::error file=$relative::PSScriptAnalyzer crashed: $($_.Exception.Message)"
+                  Write-Output $_.Exception.ToString()
               }
           }
           if ($results.Count -gt 0) {
