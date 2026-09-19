@@ -103,7 +103,7 @@ terraform apply tfplan
 | `client_count` | `2` | Number of Windows clients `WS001..WSnnn` (0–30) |
 | `linux_count` | `1` | Number of Ubuntu servers `LNX01..` (0–9) |
 | `vlan_ids` | `{ mgmt = 10, servers = 20, clients = 30, guest = 40 }` | VLAN per segment; the third octet of each subnet follows the VLAN ID |
-| `disk_sizes_gb` | `dc 60, fs_os 60, fs_data 100, mgmt 60, client 64, linux 32, router 20` | Per-role disk sizes; omitted keys keep their default |
+| `disk_sizes_gb` | `dc 60, fs_os 60, fs_data 100, backup 60, mgmt 60, client 64, linux 32, router 20` | Per-role disk sizes; omitted keys keep their default. `backup` is a dedicated backup disk on DC01, DC02 and FS01 |
 | `start_clients` | `false` | Clients use DHCP from the DCs, so start them after phase 3 |
 | `windows_client_template_id` | `null` | Windows 11 template; falls back to the Desktop Experience template |
 | `deploy_router` | `true` | Create RTR01 from the OPNsense ISO |

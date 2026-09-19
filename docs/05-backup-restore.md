@@ -22,6 +22,17 @@ are not backups: they share storage and do not provide application-aware AD reco
 
 Run locally in elevated PowerShell 7. A dedicated `E:` disk is used in these examples.
 
+Terraform attaches this disk to DC01, DC02 and FS01 (`disk_sizes_gb.backup`, default 60 GB; on
+FS01 it is the second extra disk after the share volume). Initialize it once. On FS01 run this
+**after** `New-FileShares.ps1`, which claims the first raw disk for `S:`:
+
+```powershell
+Get-Disk | Where-Object PartitionStyle -eq 'RAW' | Sort-Object Number | Select-Object -First 1 |
+    Initialize-Disk -PartitionStyle GPT -PassThru |
+    New-Partition -DriveLetter E -UseMaximumSize |
+    Format-Volume -FileSystem NTFS -NewFileSystemLabel Backup -Confirm:$false
+```
+
 ```powershell
 # DC01 and DC02: System State plus an AD DS IFM set with SYSVOL
 .\scripts\Backup\Backup-LabEnvironment.ps1 -BackupTarget E:

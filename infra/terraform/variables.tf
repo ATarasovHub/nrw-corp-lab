@@ -135,6 +135,7 @@ variable "disk_sizes_gb" {
     dc      = optional(number, 60)
     fs_os   = optional(number, 60)
     fs_data = optional(number, 100)
+    backup  = optional(number, 60)
     mgmt    = optional(number, 60)
     client  = optional(number, 64)
     linux   = optional(number, 32)

@@ -124,7 +124,8 @@ if (-not $feature.Installed -and $PSCmdlet.ShouldProcess($env:COMPUTERNAME, 'Ins
     Install-WindowsFeature -Name Windows-Server-Backup -IncludeManagementTools | Out-Null
 }
 
-$stamp = Get-Date -Format 'yyyyMMdd-HHmmss'
+$startedAt = Get-Date
+$stamp = $startedAt.ToString('yyyyMMdd-HHmmss')
 $evidenceRoot = Join-Path -Path $BackupTarget -ChildPath "nrw-corp-lab\$env:COMPUTERNAME\$stamp"
 if ($PSCmdlet.ShouldProcess($evidenceRoot, 'Create backup evidence directory')) {
     New-Item -Path $evidenceRoot -ItemType Directory -Force | Out-Null
@@ -168,7 +169,8 @@ if ($selectedRole -eq 'DomainController' -and -not $SkipIfm) {
 
 $record = [ordered]@{
     SchemaVersion       = 1
-    StartedAt           = (Get-Date).ToString('o')
+    StartedAt           = $startedAt.ToString('o')
+    FinishedAt          = (Get-Date).ToString('o')
     ComputerName        = $env:COMPUTERNAME
     Role                = $selectedRole
     BackupTarget        = $BackupTarget

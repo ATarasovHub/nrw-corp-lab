@@ -34,6 +34,7 @@ disk_sizes_gb = {
   dc      = 60
   fs_os   = 60
   fs_data = 100
+  backup  = 60
   mgmt    = 60
   client  = 64
   linux   = 32

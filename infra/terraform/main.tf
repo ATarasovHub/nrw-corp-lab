@@ -120,11 +120,11 @@ resource "proxmox_virtual_environment_vm" "windows" {
   }
 
   dynamic "disk" {
-    for_each = each.value.data_disk_gb > 0 ? [each.value.data_disk_gb] : []
+    for_each = { for index, size in each.value.extra_disks : "scsi${index + 1}" => size }
 
     content {
       datastore_id = var.datastore_vm
-      interface    = "scsi1"
+      interface    = disk.key
       size         = disk.value
       iothread     = true
       discard      = "on"

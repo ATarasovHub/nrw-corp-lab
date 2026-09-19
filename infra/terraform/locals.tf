@@ -9,7 +9,8 @@ locals {
 
   client_template_id = coalesce(var.windows_client_template_id, var.windows_desktop_template_id)
 
-  # host_number = null means DHCP.
+  # host_number = null means DHCP. extra_disks (GB) become scsi1, scsi2, ... in this order:
+  # FS01 gets the share volume (S:) first and the backup volume (E:) second.
   windows_servers = {
     MGMT01 = {
       vm_id        = 110
@@ -19,7 +20,7 @@ locals {
       cores        = 2
       memory_mb    = 4096
       disk_gb      = var.disk_sizes_gb.mgmt
-      data_disk_gb = 0
+      extra_disks  = []
       dns_servers  = local.dc_ips
       started      = true
       role_tags    = ["mgmt"]
@@ -33,7 +34,7 @@ locals {
       cores        = 2
       memory_mb    = 3072
       disk_gb      = var.disk_sizes_gb.dc
-      data_disk_gb = 0
+      extra_disks  = [var.disk_sizes_gb.backup]
       dns_servers  = [local.dc02_ip, "127.0.0.1"]
       started      = true
       role_tags    = ["dc"]
@@ -46,7 +47,7 @@ locals {
       cores        = 2
       memory_mb    = 3072
       disk_gb      = var.disk_sizes_gb.dc
-      data_disk_gb = 0
+      extra_disks  = [var.disk_sizes_gb.backup]
       dns_servers  = [local.dc01_ip, "127.0.0.1"]
       started      = true
       role_tags    = ["dc"]
@@ -59,7 +60,7 @@ locals {
       cores        = 2
       memory_mb    = 3072
       disk_gb      = var.disk_sizes_gb.fs_os
-      data_disk_gb = var.disk_sizes_gb.fs_data
+      extra_disks  = [var.disk_sizes_gb.fs_data, var.disk_sizes_gb.backup]
       dns_servers  = local.dc_ips
       started      = true
       role_tags    = ["fileserver"]
@@ -75,7 +76,7 @@ locals {
       cores        = 2
       memory_mb    = 4096
       disk_gb      = var.disk_sizes_gb.client
-      data_disk_gb = 0
+      extra_disks  = []
       dns_servers  = local.dc_ips
       started      = var.start_clients
       role_tags    = ["client"]
