@@ -225,4 +225,6 @@ the natural host for monitoring in a later phase.
 5. AD structure: OUs, groups, users, delegation (`data/`).
 6. FS01: domain join, shares, NTFS permissions via AGDLP.
 7. Group Policy (`gpo/`).
-8. Clients: domain join, validation tests (`tests/`).
+8. Backups: System State / IFM on DCs and volume backup on FS01 (`scripts/Backup/`).
+9. Validation: live domain, replication, DHCP, RSoP and NTFS tests (`tests/Integration/`).
+10. Evidence: run RT-01 and add 5–8 result screenshots (`docs/screenshots/`).
