@@ -50,8 +50,15 @@
             CheckHashtable = $true
         }
 
+        # Command and parameter casing is checked in a separate pass with
+        # .github/PSScriptAnalyzerCasingSettings.psd1: in PSScriptAnalyzer 1.24/1.25 the command
+        # lookup races with other rules running in parallel (NullReferenceException in
+        # CommandInfo.Parameters). Keywords and operators are safe to check here.
         PSUseCorrectCasing         = @{
-            Enable = $true
+            Enable        = $true
+            CheckCommands = $false
+            CheckKeyword  = $true
+            CheckOperator = $true
         }
 
         PSAvoidUsingCmdletAliases  = @{
