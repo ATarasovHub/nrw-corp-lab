@@ -55,18 +55,24 @@ All lab VLANs share the VLAN-aware Proxmox bridge `vmbr1`. RTR01's WAN interface
 | Setting                | Value                                   |
 | ---------------------- | --------------------------------------- |
 | Scope                  | 10.10.30.0/24                           |
-| Pool                   | 10.10.30.100 – 10.10.30.199 (100 leases) |
-| Exclusions             | 10.10.30.1 – 10.10.30.99, 10.10.30.200 – 10.10.30.254 |
+| Scope range            | 10.10.30.50 – 10.10.30.199              |
+| Exclusion              | 10.10.30.50 – 10.10.30.99 (reservation block, not leased dynamically) |
+| Dynamic pool           | 10.10.30.100 – 10.10.30.199 (100 leases) |
 | Lease duration         | 8 days                                  |
 | Option 3 — Router      | 10.10.30.1                              |
 | Option 6 — DNS servers | 10.10.20.11, 10.10.20.12                |
 | Option 15 — DNS domain | ad.nrwcorp.internal                     |
 | Failover               | Load balance 50/50, MCLT 1 h, shared secret passed as `SecureString` |
 | DNS dynamic updates    | Always, discard A/PTR on lease deletion, secure updates only |
+| DNS update credential  | Optional dedicated account (`-DnsUpdateCredential`), recommended when DHCP runs on a DC |
 
 The pool of 100 leases covers 30 employees with ~2 devices each plus headroom.
 Both DHCP servers are authorized in AD. RTR01 relays DHCP requests from VLAN 30 to both
 10.10.20.11 and 10.10.20.12.
+
+Reservations must lie inside the scope range, so the range starts at `.50` and the reservation
+block `.50–.99` is excluded from dynamic assignment. Desired state: [data/dhcp.psd1](../data/dhcp.psd1),
+deployed by `scripts/Network/New-DhcpScopes.ps1`.
 
 ### Scope `GUEST` (OPNsense, RTR01)
 

@@ -55,3 +55,14 @@ refuses to write inside a git repository. All users must change their secret at 
 
 Re-running is safe: users are matched by `employeeID`. Change `users.csv` and run again to see
 updates, department moves and leavers (removed rows → disabled and moved to `Disabled/Users`).
+
+### Phase 5 — DHCP
+
+| Step | Where | Command |
+| ---- | ----- | ------- |
+| 1 | DC01 | `.\scripts\Network\New-DhcpScopes.ps1 -FailoverSharedSecret (Read-Host -AsSecureString) -ReservationMacAddress @{ PRN01 = '00-15-5D-xx-xx-xx' }` |
+| 2 | Proxmox | set `start_clients = true` in `terraform.tfvars`, `terraform apply` — clients boot and get a lease |
+| 3 | WS001/WS002 | `.\scripts\Domain\Join-LabDomain.ps1 -Credential (Get-Credential NRWCORP\Administrator) -OrganizationalUnit 'Computers/Workstations' -Restart` |
+
+Requires the DHCP relay on RTR01 (VLAN 30 → 10.10.20.11, 10.10.20.12). Check:
+`Get-DhcpServerv4Failover -ComputerName DC01` shows state `Normal`; `Get-DhcpServerv4Lease -ScopeId 10.10.30.0`.
