@@ -215,7 +215,8 @@ Rules:
 2. **Global groups are never placed on an ACL** — they describe *who* someone is (role).
 3. **Only domain local groups are placed on ACLs** — they describe *what* can be accessed.
 4. Each resource has at most one DL group per permission level (`RO`, `RW`, `FC`).
-5. Share permissions are `Authenticated Users: Change`; effective access is controlled by NTFS.
+5. Share permissions are `Everyone: Full Control` on every share; effective access is controlled
+   by NTFS only, so there is exactly one place to look when troubleshooting access.
 6. Access-based enumeration is enabled so users only see folders they can open.
 
 Why AGDLP instead of assigning users directly:
@@ -243,6 +244,24 @@ Why AGDLP instead of assigning users directly:
 | `\\FS01\Public`      | `GG-AllStaff`                       | —                                 |
 
 `DL-FS-<Share>-FC` contains only `GG-T1-ServerAdmins`.
+
+NTFS ACLs on the share folders are explicit and not inherited: SYSTEM and Administrators
+(Full Control), `DL-FS-<Share>-FC` (Full Control), `DL-FS-<Share>-RW` (Modify),
+`DL-FS-<Share>-RO` (Read & Execute). Every share has an FSRM hard quota with an event-log warning
+at 85 % ([data/shares.psd1](../data/shares.psd1)).
+
+### Home Directories
+
+| Setting | Value |
+| ------- | ----- |
+| Share | `\FS01\Home$` (hidden), access-based enumeration |
+| Root ACL | `GG-AllStaff`: traverse and list this folder only — users cannot create folders |
+| User folder | `S:\Home\<sAMAccountName>`, owner has Modify, inheritance disabled |
+| AD attributes | `homeDirectory = \FS01\Home$\<sAMAccountName>`, `homeDrive = H:` |
+| Quota | FSRM auto-apply template `NRW Home 5 GB` |
+
+Folders are pre-created by `New-FileShares.ps1` for every member of `GG-AllStaff`, which is the
+scripted equivalent of entering `\FS01\Home$\%username%` in ADUC.
 
 ## Administrative Tiering
 

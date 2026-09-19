@@ -66,3 +66,13 @@ updates, department moves and leavers (removed rows → disabled and moved to `D
 
 Requires the DHCP relay on RTR01 (VLAN 30 → 10.10.20.11, 10.10.20.12). Check:
 `Get-DhcpServerv4Failover -ComputerName DC01` shows state `Normal`; `Get-DhcpServerv4Lease -ScopeId 10.10.30.0`.
+
+### Phase 6 — File server
+
+| Step | Where | Command |
+| ---- | ----- | ------- |
+| 1 | FS01 | `.\scripts\FileServer\New-FileShares.ps1 -WhatIf` — review, then run without `-WhatIf` |
+
+Prerequisites: FS01 joined to the domain (phase 4), groups created by `Import-LabUsers.ps1`, data
+disk attached (Terraform `disk_sizes_gb.fs_data`). Check: `Get-SmbShare`, `Get-FsrmQuota`,
+`(Get-Acl S:\Shares\Finance).Access`.

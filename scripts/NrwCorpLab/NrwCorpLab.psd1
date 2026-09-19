@@ -1,6 +1,6 @@
 @{
     RootModule           = 'NrwCorpLab.psm1'
-    ModuleVersion        = '0.4.0'
+    ModuleVersion        = '0.6.0'
     GUID                 = '4f3a2c1e-7b8d-4e6f-9a0b-1c2d3e4f5a6b'
     Author               = 'taras'
     CompanyName          = 'nrw-corp-lab'
@@ -19,6 +19,7 @@
         'Test-LabUserData'
         'Test-LabPathInGitRepository'
         'Protect-LabFile'
+        'Get-LabAclSignature'
         'Set-LabAdGroup'
         'Set-LabAdGroupMember'
     )

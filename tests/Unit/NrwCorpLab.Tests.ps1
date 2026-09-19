@@ -134,3 +134,28 @@ Describe 'Test-LabPathInGitRepository' {
         Test-LabPathInGitRepository -Path (Join-Path -Path ([System.IO.Path]::GetTempPath()) -ChildPath 'nrw-lab-test/secrets.csv') | Should -BeFalse
     }
 }
+
+Describe 'Get-LabAclSignature' {
+    It 'ignores Synchronize and rule order' {
+        $sid = [System.Security.Principal.SecurityIdentifier] 'S-1-5-32-545'
+        $admins = [System.Security.Principal.SecurityIdentifier] 'S-1-5-32-544'
+        $first = [System.Security.AccessControl.DirectorySecurity]::new()
+        $first.AddAccessRule([System.Security.AccessControl.FileSystemAccessRule]::new($sid, 'Modify', 'ContainerInherit, ObjectInherit', 'None', 'Allow'))
+        $first.AddAccessRule([System.Security.AccessControl.FileSystemAccessRule]::new($admins, 'FullControl', 'ContainerInherit, ObjectInherit', 'None', 'Allow'))
+        $second = [System.Security.AccessControl.DirectorySecurity]::new()
+        $second.AddAccessRule([System.Security.AccessControl.FileSystemAccessRule]::new($admins, 'FullControl', 'ContainerInherit, ObjectInherit', 'None', 'Allow'))
+        $second.AddAccessRule([System.Security.AccessControl.FileSystemAccessRule]::new($sid, 'Modify, Synchronize', 'ContainerInherit, ObjectInherit', 'None', 'Allow'))
+
+        (Get-LabAclSignature -Acl $first) -join ';' | Should -Be ((Get-LabAclSignature -Acl $second) -join ';')
+    }
+
+    It 'detects different rights' {
+        $sid = [System.Security.Principal.SecurityIdentifier] 'S-1-5-32-545'
+        $modify = [System.Security.AccessControl.DirectorySecurity]::new()
+        $modify.AddAccessRule([System.Security.AccessControl.FileSystemAccessRule]::new($sid, 'Modify', 'None', 'None', 'Allow'))
+        $read = [System.Security.AccessControl.DirectorySecurity]::new()
+        $read.AddAccessRule([System.Security.AccessControl.FileSystemAccessRule]::new($sid, 'ReadAndExecute', 'None', 'None', 'Allow'))
+
+        (Get-LabAclSignature -Acl $modify) -join ';' | Should -Not -Be ((Get-LabAclSignature -Acl $read) -join ';')
+    }
+}

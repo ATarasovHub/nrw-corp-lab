@@ -418,6 +418,36 @@ function Protect-LabFile {
     }
 }
 
+function Get-LabAclSignature {
+    <#
+    .SYNOPSIS
+        Returns a sorted, comparable representation of the explicit access rules of an ACL.
+    .DESCRIPTION
+        One string per explicit rule: SID|rights|inheritance|propagation|type. The Synchronize
+        right is ignored because Windows adds it implicitly to allow rules. Used to decide whether
+        an ACL must be rewritten and to verify ACLs in the Pester tests.
+    .PARAMETER Acl
+        File or directory security descriptor, e.g. from Get-Acl.
+    .EXAMPLE
+        Get-LabAclSignature -Acl (Get-Acl -Path 'S:\Shares\Finance')
+    #>
+    [CmdletBinding()]
+    [OutputType([string[]])]
+    param(
+        [Parameter(Mandatory)]
+        [System.Security.AccessControl.FileSystemSecurity] $Acl
+    )
+
+    $synchronize = [int] [System.Security.AccessControl.FileSystemRights]::Synchronize
+    $rules = $Acl.GetAccessRules($true, $false, [System.Security.Principal.SecurityIdentifier])
+    $signature = foreach ($rule in $rules) {
+        $rights = [int] $rule.FileSystemRights -band (-bnot $synchronize)
+        '{0}|{1}|{2}|{3}|{4}' -f $rule.IdentityReference.Value, $rights, [int] $rule.InheritanceFlags, [int] $rule.PropagationFlags, $rule.AccessControlType
+    }
+    [string[]] $sorted = $signature | Sort-Object
+    $sorted
+}
+
 function Set-LabAdGroup {
     <#
     .SYNOPSIS
