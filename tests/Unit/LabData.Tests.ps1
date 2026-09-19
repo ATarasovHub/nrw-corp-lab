@@ -13,6 +13,7 @@ BeforeAll {
     $script:groups = Get-LabDataFile -Name 'groups.psd1' -DataPath $script:dataPath
     $script:shares = Get-LabDataFile -Name 'shares.psd1' -DataPath $script:dataPath
     $script:ous = Get-LabDataFile -Name 'ou-structure.psd1' -DataPath $script:dataPath
+    $script:validation = Get-LabDataFile -Name 'validation.psd1' -DataPath $script:dataPath
 }
 
 Describe 'users.csv' {
@@ -137,5 +138,28 @@ Describe 'gpo.psd1' {
         foreach ($department in $script:groups.Departments) {
             $driveGpo.DriveMaps | Where-Object { $_.Group -eq "GG-$department" -and $_.Letter -eq 'G' } | Should -Not -BeNullOrEmpty
         }
+    }
+}
+
+Describe 'validation.psd1' {
+    BeforeAll {
+        $script:validationGpos = (Get-LabDataFile -Name 'gpo.psd1' -DataPath $script:dataPath).Gpos
+    }
+
+    It 'uses an employee from users.csv as the RSoP probe' {
+        $script:users.EmployeeId | Should -Contain $script:validation.GpoUserEmployeeId
+    }
+
+    It 'expects only GPOs defined in desired state' {
+        foreach ($name in $script:validation.ExpectedGpos) {
+            $script:validationGpos.Name | Should -Contain $name
+        }
+    }
+
+    It 'uses the documented lab naming and domain conventions' {
+        $script:validation.DomainName | Should -Be 'ad.nrwcorp.internal'
+        $script:validation.DomainControllers | Should -Contain $script:validation.PrimaryDomainController
+        $script:validation.GpoComputer | Should -Match '^WS\d{3}$'
+        $script:validation.FileServer | Should -Match '^FS\d{2}$'
     }
 }

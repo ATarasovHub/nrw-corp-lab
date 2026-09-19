@@ -101,3 +101,14 @@ The target must be dedicated backup storage, not `C:` or FS01's `S:` data volume
 server with `wbadmin get versions -backupTarget:E:` and retain the timestamped evidence folder.
 The full restore procedures and the explicit test record are in
 [docs/05-backup-restore.md](../docs/05-backup-restore.md).
+
+### Phase 9 — Validation
+
+| Step | Where | Command |
+| ---- | ----- | ------- |
+| 1 | MGMT01 | `.\scripts\Validation\Invoke-LabValidation.ps1` |
+| 2 | MGMT01 | inspect `TestResults\integration-tests.xml`; archive it with the restore-test evidence |
+
+Prerequisites are Pester 5.5+, AD/DHCP/Group Policy RSAT and WinRM access to FS01. WS001 must be
+running with a DHCP lease so the suite proves observed behavior rather than configuration alone.
+See [docs/06-validation.md](../docs/06-validation.md).
