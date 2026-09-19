@@ -21,9 +21,7 @@ jobs:
         shell: pwsh
         run: |
           Set-PSRepository -Name PSGallery -InstallationPolicy Trusted
-          # 1.25.0 has a nondeterministic parallel-rule/command-cache crash on this suite.
-          # Pin the last stable release until the upstream regression is fixed.
-          Install-Module -Name PSScriptAnalyzer -RequiredVersion 1.24.0 -Scope CurrentUser -Force
+          Install-Module -Name PSScriptAnalyzer -RequiredVersion 1.25.0 -Scope CurrentUser -Force
           Get-Module -ListAvailable PSScriptAnalyzer | Select-Object Name, Version
 
       - name: Show versions
@@ -35,20 +33,51 @@ jobs:
       - name: Run PSScriptAnalyzer
         shell: pwsh
         run: |
-          Import-Module -Name PSScriptAnalyzer -RequiredVersion 1.24.0
+          # One fresh process per file prevents a PSScriptAnalyzer 1.25 command-cache crash from
+          # poisoning later analyses. A hung child is killed and retried with a 30-second bound.
           $files = Get-ChildItem -Path . -Recurse -File -Include *.ps1, *.psm1, *.psd1
-          $results = [System.Collections.Generic.List[object]]::new()
+          $findingFiles = [System.Collections.Generic.List[string]]::new()
+          $crashes = [System.Collections.Generic.List[string]]::new()
           foreach ($f in $files) {
-              Invoke-ScriptAnalyzer -Path $f.FullName -Settings ./PSScriptAnalyzerSettings.psd1 |
-                  ForEach-Object { $results.Add($_) }
-          }
-          if ($results.Count -gt 0) {
-              $results | Format-Table -AutoSize RuleName, Severity, ScriptName, Line, Message | Out-String -Width 4096
-              foreach ($r in $results) {
-                  $file = [System.IO.Path]::GetRelativePath($PWD, $r.ScriptPath) -replace '\\', '/'
-                  Write-Output "::error file=$file,line=$($r.Line)::[$($r.RuleName)] $($r.Message)"
+              $relative = [System.IO.Path]::GetRelativePath($PWD, $f.FullName) -replace '\\', '/'
+              for ($attempt = 1; $attempt -le 3; $attempt++) {
+                  $token = [guid]::NewGuid().ToString('N')
+                  $stdout = Join-Path $env:RUNNER_TEMP "$token.out"
+                  $stderr = Join-Path $env:RUNNER_TEMP "$token.err"
+                  $arguments = @(
+                      '-NoLogo', '-NoProfile', '-File', './.github/scripts/Invoke-AnalyzerFile.ps1'
+                      '-Path', $f.FullName, '-Settings', './PSScriptAnalyzerSettings.psd1'
+                  )
+                  $process = Start-Process -FilePath pwsh -ArgumentList $arguments -RedirectStandardOutput $stdout -RedirectStandardError $stderr -PassThru
+                  $finished = $process.WaitForExit(30000)
+                  if (-not $finished) {
+                      $process.Kill($true)
+                      $exitCode = 3
+                      $output = "Analyzer child exceeded 30 seconds."
+                  } else {
+                      $exitCode = $process.ExitCode
+                      $output = @((Get-Content -LiteralPath $stdout -ErrorAction SilentlyContinue), (Get-Content -LiteralPath $stderr -ErrorAction SilentlyContinue))
+                  }
+                  Remove-Item -LiteralPath $stdout, $stderr -Force -ErrorAction SilentlyContinue
+
+                  if ($exitCode -eq 0) {
+                      break
+                  }
+                  if ($exitCode -eq 2) {
+                      $output | Write-Output
+                      $findingFiles.Add($relative)
+                      break
+                  }
+                  Write-Output "Analyzer crash attempt $attempt on $relative."
+                  if ($attempt -eq 3) {
+                      $crashes.Add($relative)
+                      Write-Output "::error file=$relative::PSScriptAnalyzer crashed in three isolated processes."
+                      $output | Write-Output
+                  }
               }
-              throw "PSScriptAnalyzer: $($results.Count) finding(s) in $($files.Count) files."
+          }
+          if ($findingFiles.Count -gt 0 -or $crashes.Count -gt 0) {
+              throw "PSScriptAnalyzer: findings in $($findingFiles.Count) file(s), $($crashes.Count) crash(es) in $($files.Count) files."
           }
           Write-Output "PSScriptAnalyzer: no findings in $($files.Count) files."
 
