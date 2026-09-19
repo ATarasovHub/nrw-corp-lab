@@ -21,6 +21,7 @@ Die technische Dokumentation ist auf Englisch.
 | [02 — Network](docs/02-network.md) | VLANs, IP-Plan, DHCP, DNS, Firewall-Regeln |
 | [03 — AD Design](docs/03-ad-design.md) | OU-Struktur, Namenskonventionen, AGDLP, Tiering |
 | [04 — Group Policy](docs/04-gpo.md) | GPOs, Verknüpfungen, Begründung je Einstellung, Export/Restore |
+| [05 — Backup and Restore](docs/05-backup-restore.md) | System State, Dateiserver-Backup und getesteter Restore-Ablauf |
 | [Infrastructure](infra/README.md) | Packer-Templates, Terraform-VMs auf Proxmox VE |
 
 ## Architektur

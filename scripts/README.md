@@ -88,3 +88,16 @@ disk attached (Terraform `disk_sizes_gb.fs_data`). Check: `Get-SmbShare`, `Get-F
 
 Check on a client: `gpupdate /force`, `gpresult /r`, drive `G:` maps to the department share.
 Details: [docs/04-gpo.md](../docs/04-gpo.md).
+
+### Phase 8 — Backup and recovery
+
+| Step | Where | Command |
+| ---- | ----- | ------- |
+| 1 | DC01, DC02 | `.\scripts\Backup\Backup-LabEnvironment.ps1 -BackupTarget E:` |
+| 2 | FS01 | `.\scripts\Backup\Backup-LabEnvironment.ps1 -BackupTarget E:` |
+| 3 | isolated recovery VLAN | execute and record restore test RT-01 from `docs/05-backup-restore.md` |
+
+The target must be dedicated backup storage, not `C:` or FS01's `S:` data volume. Check each
+server with `wbadmin get versions -backupTarget:E:` and retain the timestamped evidence folder.
+The full restore procedures and the explicit test record are in
+[docs/05-backup-restore.md](../docs/05-backup-restore.md).
