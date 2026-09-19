@@ -39,13 +39,21 @@ jobs:
           $crashes = [System.Collections.Generic.List[string]]::new()
           foreach ($f in $files) {
               $relative = [System.IO.Path]::GetRelativePath($PWD, $f.FullName) -replace '\\', '/'
-              try {
-                  Invoke-ScriptAnalyzer -Path $f.FullName -Settings ./PSScriptAnalyzerSettings.psd1 -ErrorAction Stop |
-                      ForEach-Object { $results.Add($_) }
-              } catch {
-                  $crashes.Add($relative)
-                  Write-Output "::error file=$relative::PSScriptAnalyzer crashed: $($_.Exception.Message)"
-                  Write-Output $_.Exception.ToString()
+              # PSScriptAnalyzer 1.25 occasionally throws a NullReferenceException (race between
+              # rules running in parallel); a crashing file is retried before it counts as failed.
+              for ($attempt = 1; $attempt -le 3; $attempt++) {
+                  try {
+                      Invoke-ScriptAnalyzer -Path $f.FullName -Settings ./PSScriptAnalyzerSettings.psd1 -ErrorAction Stop |
+                          ForEach-Object { $results.Add($_) }
+                      break
+                  } catch {
+                      Write-Output "Attempt $attempt on ${relative}: $($_.Exception.Message)"
+                      if ($attempt -eq 3) {
+                          $crashes.Add($relative)
+                          Write-Output "::error file=$relative::PSScriptAnalyzer crashed: $($_.Exception.Message)"
+                          Write-Output $_.Exception.ToString()
+                      }
+                  }
               }
           }
           if ($results.Count -gt 0) {
