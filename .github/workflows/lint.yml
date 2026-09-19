@@ -31,7 +31,8 @@ jobs:
           if ($results) {
               $results | Format-Table -AutoSize RuleName, Severity, ScriptName, Line, Message | Out-String -Width 4096
               foreach ($r in $results) {
-                  Write-Output "::error file=$($r.ScriptPath),line=$($r.Line)::[$($r.RuleName)] $($r.Message)"
+                  $file = [System.IO.Path]::GetRelativePath($PWD, $r.ScriptPath) -replace '\\', '/'
+                  Write-Output "::error file=$file,line=$($r.Line)::[$($r.RuleName)] $($r.Message)"
               }
               throw "PSScriptAnalyzer reported $(@($results).Count) finding(s)."
           }
