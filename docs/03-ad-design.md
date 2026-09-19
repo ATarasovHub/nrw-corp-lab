@@ -110,8 +110,9 @@ All employees are members of `GG-AllStaff` (via nesting of the department groups
 | `displayName`       | `Firstname Lastname`                        | `Jürgen Müller`                  |
 | `givenName`, `sn`   | Original spelling including umlauts         | `Jürgen`, `Müller`               |
 | `department`        | Department name                             | `Finance`                        |
-| `title`             | Job title                                   | `Accountant`                     |
-| `employeeID`        | `E` + 4 digits                              | `E1017`                          |
+| `title`             | Job title (German)                          | `Finanzbuchhalterin`             |
+| `employeeID`        | `E` + 4 digits                              | `E1004`                          |
+| `manager`           | Department lead; leads report to the managing director | set automatically |
 
 Rules for deriving the logon name:
 

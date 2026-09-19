@@ -1,4 +1,4 @@
-name: Lint
+name: CI
 
 on:
   push:
@@ -37,6 +37,31 @@ jobs:
               throw "PSScriptAnalyzer reported $(@($results).Count) finding(s)."
           }
           Write-Output 'PSScriptAnalyzer: no findings.'
+
+  pester:
+    name: Pester unit tests
+    runs-on: windows-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v5
+
+      - name: Install Pester
+        shell: pwsh
+        run: |
+          Set-PSRepository -Name PSGallery -InstallationPolicy Trusted
+          Install-Module -Name Pester -MinimumVersion 5.5.0 -Scope CurrentUser -Force -SkipPublisherCheck
+
+      - name: Run unit tests
+        shell: pwsh
+        run: |
+          $config = New-PesterConfiguration
+          $config.Run.Path = './tests/Unit'
+          $config.Run.Exit = $true
+          $config.Output.Verbosity = 'Detailed'
+          $config.TestResult.Enabled = $true
+          $config.TestResult.OutputFormat = 'JUnitXml'
+          $config.TestResult.OutputPath = 'TestResults/unit-tests.xml'
+          Invoke-Pester -Configuration $config
 
   terraform:
     name: Terraform

@@ -1,6 +1,6 @@
 # nrw-corp-lab
 
-[![Lint](https://img.shields.io/badge/lint-PSScriptAnalyzer-blue)](.github/workflows/lint.yml)
+[![Lint](https://img.shields.io/badge/CI-PSScriptAnalyzer%20%7C%20Pester-blue)](.github/workflows/lint.yml)
 [![Lizenz: MIT](https://img.shields.io/badge/Lizenz-MIT-green.svg)](LICENSE)
 
 [English](README.md) | **Deutsch**
