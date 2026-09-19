@@ -1,0 +1,7 @@
+# Normalize line endings in the repository; PowerShell 7 handles LF natively.
+* text=auto eol=lf
+
+*.iso binary
+*.vhdx binary
+*.png binary
+*.jpg binary

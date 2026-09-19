@@ -1,0 +1,74 @@
+# ---------------------------------------------------------------------------
+# Secrets & credentials — never commit
+# ---------------------------------------------------------------------------
+.env
+.env.*
+!.env.example
+*.secret
+*.secrets
+secrets/
+*.pfx
+*.p12
+*.pem
+*.key
+*.kdbx
+# Export-Clixml credential files (DPAPI-bound, still sensitive)
+*.cred.xml
+*.clixml
+
+# ---------------------------------------------------------------------------
+# PowerShell
+# ---------------------------------------------------------------------------
+# Pester / analyzer output
+TestResults/
+testResults.xml
+coverage.xml
+*.trx
+# Transcripts and logs
+*.log
+transcripts/
+# Build output
+out/
+output/
+*.nupkg
+
+# ---------------------------------------------------------------------------
+# Terraform
+# ---------------------------------------------------------------------------
+.terraform/
+*.tfstate
+*.tfstate.*
+*.tfplan
+tfplan
+crash.log
+crash.*.log
+*.tfvars
+*.tfvars.json
+!*.tfvars.example
+override.tf
+override.tf.json
+*_override.tf
+*_override.tf.json
+.terraformrc
+terraform.rc
+# .terraform.lock.hcl is intentionally committed
+
+# ---------------------------------------------------------------------------
+# Lab artifacts (large binaries)
+# ---------------------------------------------------------------------------
+*.iso
+*.vhd
+*.vhdx
+*.avhdx
+
+# ---------------------------------------------------------------------------
+# OS / editor
+# ---------------------------------------------------------------------------
+Thumbs.db
+Desktop.ini
+.DS_Store
+.vscode/*
+!.vscode/settings.json
+!.vscode/extensions.json
+.idea/
+*.swp
