@@ -15,7 +15,7 @@ jobs:
     runs-on: windows-latest
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@v5
 
       - name: Install PSScriptAnalyzer
         shell: pwsh
@@ -46,7 +46,7 @@ jobs:
         working-directory: infra/terraform
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@v5
 
       - name: Set up Terraform
         uses: hashicorp/setup-terraform@v3
@@ -68,7 +68,7 @@ jobs:
         working-directory: infra/packer/windows-server-2025
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@v5
 
       - name: Set up Packer
         uses: hashicorp/setup-packer@main
@@ -77,6 +77,9 @@ jobs:
         run: packer fmt -check -recursive -diff .
 
       - name: Init
+        env:
+          # Authenticated requests avoid GitHub API rate limits when fetching plugins.
+          PACKER_GITHUB_API_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: packer init .
 
       - name: Validate
