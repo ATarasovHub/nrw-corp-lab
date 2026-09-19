@@ -27,16 +27,31 @@ jobs:
       - name: Run PSScriptAnalyzer
         shell: pwsh
         run: |
-          $results = Invoke-ScriptAnalyzer -Path . -Recurse -Settings ./PSScriptAnalyzerSettings.psd1
-          if ($results) {
+          # Analyze file by file so that an analyzer crash names the file instead of aborting the run.
+          $files = Get-ChildItem -Path . -Recurse -File -Include *.ps1, *.psm1, *.psd1
+          $results = [System.Collections.Generic.List[object]]::new()
+          $crashes = [System.Collections.Generic.List[string]]::new()
+          foreach ($f in $files) {
+              $relative = [System.IO.Path]::GetRelativePath($PWD, $f.FullName) -replace '\\', '/'
+              try {
+                  Invoke-ScriptAnalyzer -Path $f.FullName -Settings ./PSScriptAnalyzerSettings.psd1 -ErrorAction Stop |
+                      ForEach-Object { $results.Add($_) }
+              } catch {
+                  $crashes.Add($relative)
+                  Write-Output "::error file=$relative::PSScriptAnalyzer crashed: $($_.Exception.Message)"
+              }
+          }
+          if ($results.Count -gt 0) {
               $results | Format-Table -AutoSize RuleName, Severity, ScriptName, Line, Message | Out-String -Width 4096
               foreach ($r in $results) {
                   $file = [System.IO.Path]::GetRelativePath($PWD, $r.ScriptPath) -replace '\\', '/'
                   Write-Output "::error file=$file,line=$($r.Line)::[$($r.RuleName)] $($r.Message)"
               }
-              throw "PSScriptAnalyzer reported $(@($results).Count) finding(s)."
           }
-          Write-Output 'PSScriptAnalyzer: no findings.'
+          if ($results.Count -gt 0 -or $crashes.Count -gt 0) {
+              throw "PSScriptAnalyzer: $($results.Count) finding(s), $($crashes.Count) crash(es) in $($files.Count) files."
+          }
+          Write-Output "PSScriptAnalyzer: no findings in $($files.Count) files."
 
   pester:
     name: Pester unit tests
