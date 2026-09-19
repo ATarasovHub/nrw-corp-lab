@@ -167,7 +167,7 @@ resource "proxmox_virtual_environment_vm" "windows" {
 # ---------------------------------------------------------------------------
 # Ubuntu VMs — cloud image + cloud-init (NoCloud)
 # ---------------------------------------------------------------------------
-resource "proxmox_virtual_environment_download_file" "ubuntu_cloud_image" {
+resource "proxmox_download_file" "ubuntu_cloud_image" {
   count = var.linux_count > 0 ? 1 : 0
 
   node_name           = var.proxmox_node
@@ -236,7 +236,7 @@ resource "proxmox_virtual_environment_vm" "linux" {
 
   disk {
     datastore_id = var.datastore_vm
-    file_id      = proxmox_virtual_environment_download_file.ubuntu_cloud_image[0].id
+    file_id      = proxmox_download_file.ubuntu_cloud_image[0].id
     interface    = "scsi0"
     size         = each.value.disk_gb
     iothread     = true
