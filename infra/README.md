@@ -74,7 +74,7 @@ template; every clone gets its own password from Terraform.
 | First logon | `Enable-PackerWinRM.ps1` | Temporary WinRM **HTTPS** listener for Packer |
 | Provisioner | `Install-PowerShell.ps1` | PowerShell 7 for the lab automation |
 | Provisioner | `Install-CloudbaseInit.ps1` | Cloudbase-Init + config from `files/cloudbase-init` |
-| Shutdown | `sysprep /generalize /oobe` | Generalize with Cloudbase-Init's `Unattend.xml` |
+| Provisioner | `Invoke-Sysprep.ps1` | Remove build leftovers, `sysprep /generalize /oobe /quit` with Cloudbase-Init's `Unattend.xml`; Packer then shuts down and converts to a template |
 | Clone first boot | `Disable-PackerWinRM.ps1` | Remove HTTPS listener, certificate, firewall rule, Basic auth |
 
 The bootstrap scripts target Windows PowerShell 5.1 (`#Requires -Version 5.1`) because they run

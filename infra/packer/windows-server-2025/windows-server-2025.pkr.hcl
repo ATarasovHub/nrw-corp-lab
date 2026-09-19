@@ -128,9 +128,8 @@ source "proxmox-iso" "windows_server_2025" {
   winrm_insecure = true
   winrm_timeout  = "2h"
 
-  # Generalize and hand over to Cloudbase-Init. Sysprep shuts the VM down; Packer then converts it.
-  shutdown_command = "C:\\Windows\\System32\\Sysprep\\sysprep.exe /generalize /oobe /shutdown /quiet /mode:vm /unattend:\"C:\\Program Files\\Cloudbase Solutions\\Cloudbase-Init\\conf\\Unattend.xml\""
-  shutdown_timeout = "30m"
+  # No shutdown_command: after the last provisioner (sysprep /quit) the Proxmox builder shuts
+  # the VM down via ACPI and converts it into a template.
 }
 
 build {
@@ -160,8 +159,11 @@ build {
     ]
   }
 
+  # Must be last: removes the staging directory and generalizes the image for Cloudbase-Init.
   provisioner "powershell" {
-    inline = ["Remove-Item -Path '${local.staging_dir}' -Recurse -Force"]
+    inline = [
+      "& '${local.staging_dir}\\scripts\\Invoke-Sysprep.ps1' -CleanupPath '${local.staging_dir}'",
+    ]
   }
 
   post-processor "manifest" {

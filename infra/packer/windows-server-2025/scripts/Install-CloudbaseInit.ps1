@@ -74,8 +74,7 @@ if (-not (Get-Service -Name 'cloudbase-init' -ErrorAction SilentlyContinue)) {
         }
         Remove-Item -LiteralPath $msiPath -Force
     }
-}
-else {
+} else {
     Write-Verbose 'Cloudbase-Init is already installed. Updating configuration only.'
 }
 
