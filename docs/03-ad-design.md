@@ -254,14 +254,14 @@ at 85 % ([data/shares.psd1](../data/shares.psd1)).
 
 | Setting | Value |
 | ------- | ----- |
-| Share | `\FS01\Home$` (hidden), access-based enumeration |
+| Share | `\\FS01\Home$` (hidden), access-based enumeration |
 | Root ACL | `GG-AllStaff`: traverse and list this folder only — users cannot create folders |
 | User folder | `S:\Home\<sAMAccountName>`, owner has Modify, inheritance disabled |
-| AD attributes | `homeDirectory = \FS01\Home$\<sAMAccountName>`, `homeDrive = H:` |
+| AD attributes | `homeDirectory = \\FS01\Home$\<sAMAccountName>`, `homeDrive = H:` |
 | Quota | FSRM auto-apply template `NRW Home 5 GB` |
 
 Folders are pre-created by `New-FileShares.ps1` for every member of `GG-AllStaff`, which is the
-scripted equivalent of entering `\FS01\Home$\%username%` in ADUC.
+scripted equivalent of entering `\\FS01\Home$\%username%` in ADUC.
 
 ## Administrative Tiering
 
@@ -286,9 +286,9 @@ The lab applies a simplified version of Microsoft's enterprise access model:
 
 | Policy                    | Applies to       | Min length | History | Max age | Lockout |
 | ------------------------- | ---------------- | ---------- | ------- | ------- | ------- |
-| Default Domain Policy     | All users        | 14         | 24      | none    | 10 attempts / 15 min |
+| GPO `C-Domain-PasswordPolicy` | All users | 14        | 24      | none    | 10 attempts / 15 min |
 | FGPP `PSO-Admins`         | `GG-T*-*` admin groups | 20   | 24      | none    | 5 attempts / 30 min  |
-| FGPP `PSO-ServiceAccounts` | Legacy service accounts (if any) | 30 | 24 | none | none |
+| FGPP `PSO-ServiceAccounts` | `GG-LegacyServiceAccounts` | 30 | 24 | none | none |
 
 No forced periodic password expiry, in line with current NIST SP 800-63B and BSI guidance;
 passwords are changed on indication of compromise.

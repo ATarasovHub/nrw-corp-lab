@@ -1,6 +1,6 @@
 @{
     RootModule           = 'NrwCorpLab.psm1'
-    ModuleVersion        = '0.6.0'
+    ModuleVersion        = '0.7.0'
     GUID                 = '4f3a2c1e-7b8d-4e6f-9a0b-1c2d3e4f5a6b'
     Author               = 'taras'
     CompanyName          = 'nrw-corp-lab'
@@ -22,6 +22,12 @@
         'Get-LabAclSignature'
         'Set-LabAdGroup'
         'Set-LabAdGroupMember'
+        'Merge-LabGpoExtensionName'
+        'ConvertTo-LabSecurityTemplate'
+        'ConvertTo-LabDrivesXml'
+        'Resolve-LabGpoLinkTarget'
+        'Set-LabGpoLink'
+        'Set-LabGpoSysvolFile'
     )
     CmdletsToExport      = @()
     VariablesToExport    = @()

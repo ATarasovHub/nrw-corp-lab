@@ -94,3 +94,48 @@ Describe 'ou-structure.psd1' {
         }
     }
 }
+
+Describe 'gpo.psd1' {
+    BeforeAll {
+        $script:gpos = (Get-LabDataFile -Name 'gpo.psd1' -DataPath $script:dataPath).Gpos
+        $script:knownGroups = [System.Collections.Generic.List[string]]::new()
+        $script:groups.Departments | ForEach-Object { $script:knownGroups.Add("GG-$_"); $script:knownGroups.Add("GG-$_-Leads") }
+        $script:knownGroups.Add($script:groups.AllStaffGroup)
+        $script:groups.AdminGroups.Name | ForEach-Object { $script:knownGroups.Add($_) }
+    }
+
+    It 'follows the naming convention C-/U-<Scope>-<Purpose>' {
+        $script:gpos.Name | ForEach-Object { $_ | Should -Match '^[CU]-[A-Za-z]+-[A-Za-z]+$' }
+    }
+
+    It 'references only known groups in security templates and drive maps' {
+        foreach ($gpo in $script:gpos) {
+            $values = @()
+            if ($gpo.ContainsKey('SecurityTemplate')) {
+                $values = $gpo.SecurityTemplate.Values | ForEach-Object { $_.Values }
+            }
+            foreach ($token in [regex]::Matches(($values -join ','), '\{([^}]+)\}') | ForEach-Object { $_.Groups[1].Value }) {
+                if ($token -notmatch '^RID:\d+$') {
+                    $token | Should -BeIn $script:knownGroups -Because "GPO $($gpo.Name)"
+                }
+            }
+            foreach ($drive in @($gpo.DriveMaps) | Where-Object { $_ }) {
+                $drive.Group | Should -BeIn $script:knownGroups -Because "GPO $($gpo.Name)"
+            }
+        }
+    }
+
+    It 'links only to existing OUs' {
+        $paths = $script:ous.OrganizationalUnits.Path
+        foreach ($link in $script:gpos.Links | Where-Object { $_ -notlike '@*' }) {
+            $paths | Should -Contain $link
+        }
+    }
+
+    It 'maps every department share as drive G:' {
+        $driveGpo = $script:gpos | Where-Object { $_.ContainsKey('DriveMaps') }
+        foreach ($department in $script:groups.Departments) {
+            $driveGpo.DriveMaps | Where-Object { $_.Group -eq "GG-$department" -and $_.Letter -eq 'G' } | Should -Not -BeNullOrEmpty
+        }
+    }
+}

@@ -546,3 +546,291 @@ function Set-LabAdGroupMember {
         Remove-ADGroupMember -Identity $group -Members $toRemove -Confirm:$false
     }
 }
+
+# ---------------------------------------------------------------------------
+# Group Policy helpers
+# ---------------------------------------------------------------------------
+
+function Merge-LabGpoExtensionName {
+    <#
+    .SYNOPSIS
+        Adds client-side extension (CSE) entries to a gPCMachineExtensionNames / gPCUserExtensionNames value.
+    .DESCRIPTION
+        The attribute has the form [{CSE}{Tool}{Tool}][{CSE}{Tool}]. Windows expects the CSE GUIDs
+        and the tool GUIDs inside each entry to be sorted; unsorted values can make clients skip
+        extensions. The function merges and sorts; existing entries are preserved.
+    .PARAMETER Current
+        Current attribute value (may be empty).
+    .PARAMETER Extension
+        Entries to add in the same format.
+    .EXAMPLE
+        Merge-LabGpoExtensionName -Current '' -Extension '[{827D319E-6EAC-11D2-A4EA-00C04F79F83A}{803E14A0-B4FB-11D0-A0D0-00A0C90F574B}]'
+    #>
+    [CmdletBinding()]
+    [OutputType([string])]
+    param(
+        [AllowEmptyString()]
+        [AllowNull()]
+        [string] $Current = '',
+
+        [Parameter(Mandatory)]
+        [string] $Extension
+    )
+
+    $table = [System.Collections.Generic.SortedDictionary[string, System.Collections.Generic.SortedSet[string]]]::new([System.StringComparer]::OrdinalIgnoreCase)
+    foreach ($source in $Current, $Extension) {
+        foreach ($entry in [regex]::Matches([string] $source, '\[([^\]]+)\]')) {
+            $guids = @([regex]::Matches($entry.Groups[1].Value, '\{[0-9A-Fa-f-]{36}\}') | ForEach-Object { $_.Value.ToUpperInvariant() })
+            if ($guids.Count -eq 0) {
+                continue
+            }
+            if (-not $table.ContainsKey($guids[0])) {
+                $table[$guids[0]] = [System.Collections.Generic.SortedSet[string]]::new([System.StringComparer]::OrdinalIgnoreCase)
+            }
+            foreach ($tool in $guids | Select-Object -Skip 1) {
+                [void] $table[$guids[0]].Add($tool)
+            }
+        }
+    }
+
+    -join ($table.GetEnumerator() | ForEach-Object { '[' + $_.Key + (-join $_.Value) + ']' })
+}
+
+function ConvertTo-LabSecurityTemplate {
+    <#
+    .SYNOPSIS
+        Renders a security template (GptTmpl.inf) from a hashtable of sections.
+    .DESCRIPTION
+        Sections and keys are sorted so that the output is stable and can be compared with the
+        file in SYSVOL to decide whether the GPO has to change.
+    .PARAMETER Section
+        Hashtable: section name -> hashtable of key/value pairs, e.g.
+        @{ 'System Access' = @{ MinimumPasswordLength = 14 } }.
+    .EXAMPLE
+        ConvertTo-LabSecurityTemplate -Section @{ 'System Access' = @{ MinimumPasswordLength = 14 } }
+    #>
+    [CmdletBinding()]
+    [OutputType([string])]
+    param(
+        [Parameter(Mandatory)]
+        [hashtable] $Section
+    )
+
+    $lines = [System.Collections.Generic.List[string]]::new()
+    $lines.Add('[Unicode]')
+    $lines.Add('Unicode=yes')
+    $lines.Add('[Version]')
+    $lines.Add('signature="$CHICAGO$"')
+    $lines.Add('Revision=1')
+    foreach ($name in $Section.Keys | Sort-Object) {
+        $lines.Add("[$name]")
+        foreach ($key in $Section[$name].Keys | Sort-Object) {
+            $lines.Add("$key = $($Section[$name][$key])".TrimEnd())
+        }
+    }
+    ($lines -join "`r`n") + "`r`n"
+}
+
+function ConvertTo-LabDrivesXml {
+    <#
+    .SYNOPSIS
+        Renders a Group Policy Preferences Drives.xml with item-level targeting by security group.
+    .DESCRIPTION
+        Produces deterministic output (stable uid per drive, fixed timestamp) so that re-running
+        the GPO build does not change the file unless the data changes.
+    .PARAMETER DriveMap
+        Objects with Letter, Path, Label, GroupName (DOMAIN\group) and GroupSid.
+    .EXAMPLE
+        ConvertTo-LabDrivesXml -DriveMap @([pscustomobject]@{ Letter = 'P'; Path = '\FS01\Public'; Label = 'Public'; GroupName = 'NRWCORP\GG-AllStaff'; GroupSid = 'S-1-5-21-1-2-3-1105' })
+    #>
+    [CmdletBinding()]
+    [OutputType([string])]
+    param(
+        [Parameter(Mandatory)]
+        [object[]] $DriveMap
+    )
+
+    $escape = { param($value) [System.Security.SecurityElement]::Escape([string] $value) }
+    $md5 = [System.Security.Cryptography.MD5]::Create()
+    $builder = [System.Text.StringBuilder]::new()
+    [void] $builder.AppendLine('<?xml version="1.0" encoding="utf-8"?>')
+    [void] $builder.AppendLine('<Drives clsid="{8FDDCC1A-0C3C-43cd-A6B4-71A6DF20DA8C}">')
+
+    foreach ($drive in $DriveMap | Sort-Object -Property Letter, GroupName) {
+        $hash = $md5.ComputeHash([System.Text.Encoding]::UTF8.GetBytes("$($drive.Letter)|$($drive.Path)|$($drive.GroupName)"))
+        $uid = ([guid]::new($hash)).ToString('B').ToUpperInvariant()
+        $letter = ([string] $drive.Letter).ToUpperInvariant()
+        [void] $builder.AppendLine("  <Drive clsid=""{935D1B74-9CB8-4e3c-9914-7DD559B7A417}"" name=""${letter}:"" status=""${letter}:"" image=""2"" changed=""2026-01-01 00:00:00"" uid=""$uid"" bypassErrors=""1"">")
+        [void] $builder.AppendLine("    <Properties action=""U"" thisDrive=""NOCHANGE"" allDrives=""NOCHANGE"" userName="""" path=""$(& $escape $drive.Path)"" label=""$(& $escape $drive.Label)"" persistent=""1"" useLetter=""1"" letter=""$letter""/>")
+        [void] $builder.AppendLine('    <Filters>')
+        [void] $builder.AppendLine("      <FilterGroup bool=""AND"" not=""0"" name=""$(& $escape $drive.GroupName)"" sid=""$(& $escape $drive.GroupSid)"" userContext=""1"" primaryGroup=""0"" localGroup=""0""/>")
+        [void] $builder.AppendLine('    </Filters>')
+        [void] $builder.AppendLine('  </Drive>')
+    }
+    [void] $builder.AppendLine('</Drives>')
+    $md5.Dispose()
+    $builder.ToString()
+}
+
+function Resolve-LabGpoLinkTarget {
+    <#
+    .SYNOPSIS
+        Converts a link target from data/gpo.psd1 into a distinguished name.
+    .DESCRIPTION
+        '@Domain' = domain root, '@DomainControllers' = the Domain Controllers OU,
+        '@Root' = the company root OU, anything else = OU path below the root OU.
+    .PARAMETER Link
+        Link target notation.
+    .PARAMETER RootOu
+        Name of the company root OU.
+    .PARAMETER DomainDistinguishedName
+        Distinguished name of the domain.
+    .EXAMPLE
+        Resolve-LabGpoLinkTarget -Link 'Computers/Workstations' -RootOu 'NRW' -DomainDistinguishedName 'DC=ad,DC=nrwcorp,DC=internal'
+    #>
+    [CmdletBinding()]
+    [OutputType([string])]
+    param(
+        [Parameter(Mandatory)]
+        [string] $Link,
+
+        [Parameter(Mandatory)]
+        [string] $RootOu,
+
+        [Parameter(Mandatory)]
+        [string] $DomainDistinguishedName
+    )
+
+    switch ($Link) {
+        '@Domain' { $DomainDistinguishedName }
+        '@DomainControllers' { "OU=Domain Controllers,$DomainDistinguishedName" }
+        '@Root' { ConvertTo-LabDistinguishedName -Path '' -RootOu $RootOu -DomainDistinguishedName $DomainDistinguishedName }
+        default { ConvertTo-LabDistinguishedName -Path $Link -RootOu $RootOu -DomainDistinguishedName $DomainDistinguishedName }
+    }
+}
+
+function Set-LabGpoLink {
+    <#
+    .SYNOPSIS
+        Ensures that a GPO is linked (and enabled) on a target, optionally with a given link order.
+    .PARAMETER Name
+        GPO display name.
+    .PARAMETER Target
+        Distinguished name of the domain or OU.
+    .PARAMETER Order
+        Optional link order (1 = highest precedence).
+    .EXAMPLE
+        Set-LabGpoLink -Name 'C-Domain-PasswordPolicy' -Target $domainDn -Order 1
+    #>
+    [CmdletBinding(SupportsShouldProcess)]
+    param(
+        [Parameter(Mandatory)]
+        [string] $Name,
+
+        [Parameter(Mandatory)]
+        [string] $Target,
+
+        [int] $Order = 0
+    )
+
+    $link = (Get-GPInheritance -Target $Target).GpoLinks | Where-Object { $_.DisplayName -eq $Name }
+    if (-not $link) {
+        if ($PSCmdlet.ShouldProcess($Target, "Link GPO $Name")) {
+            $parameters = @{ Name = $Name; Target = $Target; LinkEnabled = 'Yes' }
+            if ($Order -gt 0) {
+                $parameters['Order'] = $Order
+            }
+            New-GPLink @parameters | Out-Null
+        }
+        return
+    }
+    if (-not $link.Enabled -and $PSCmdlet.ShouldProcess($Target, "Enable link of $Name")) {
+        Set-GPLink -Name $Name -Target $Target -LinkEnabled Yes | Out-Null
+    }
+    if ($Order -gt 0 -and $link.Order -ne $Order -and $PSCmdlet.ShouldProcess($Target, "Set link order of $Name to $Order")) {
+        Set-GPLink -Name $Name -Target $Target -Order $Order | Out-Null
+    }
+}
+
+function Set-LabGpoSysvolFile {
+    <#
+    .SYNOPSIS
+        Writes a policy file into a GPO's SYSVOL folder and bumps the GPO version when it changed.
+    .DESCRIPTION
+        Used for settings that the GroupPolicy module cannot write (security templates, Group
+        Policy Preferences). When the content differs, the function writes the file, registers
+        the client-side extension in AD and increments the machine or user version in both AD
+        (versionNumber) and GPT.INI, so that clients re-apply the GPO.
+        Returns $true if the file was changed.
+    .PARAMETER GpoId
+        GUID of the GPO.
+    .PARAMETER DomainName
+        DNS name of the domain.
+    .PARAMETER RelativePath
+        Path below the GPO folder, e.g. Machine\Microsoft\Windows NT\SecEdit\GptTmpl.inf.
+    .PARAMETER Content
+        File content.
+    .PARAMETER Encoding
+        Unicode (UTF-16 LE, required for GptTmpl.inf) or UTF8.
+    .PARAMETER Scope
+        Machine or User half of the GPO.
+    .PARAMETER Extension
+        CSE entries to register, e.g. [{CSE}{Tool}].
+    .EXAMPLE
+        Set-LabGpoSysvolFile -GpoId $gpo.Id -DomainName 'ad.nrwcorp.internal' -RelativePath 'Machine\Microsoft\Windows NT\SecEdit\GptTmpl.inf' -Content $inf -Encoding Unicode -Scope Machine -Extension $securityCse
+    #>
+    [CmdletBinding(SupportsShouldProcess)]
+    [OutputType([bool])]
+    param(
+        [Parameter(Mandatory)]
+        [guid] $GpoId,
+
+        [Parameter(Mandatory)]
+        [string] $DomainName,
+
+        [Parameter(Mandatory)]
+        [string] $RelativePath,
+
+        [Parameter(Mandatory)]
+        [string] $Content,
+
+        [ValidateSet('Unicode', 'UTF8')]
+        [string] $Encoding = 'UTF8',
+
+        [Parameter(Mandatory)]
+        [ValidateSet('Machine', 'User')]
+        [string] $Scope,
+
+        [Parameter(Mandatory)]
+        [string] $Extension
+    )
+
+    $gpoFolder = "\\$DomainName\SYSVOL\$DomainName\Policies\$($GpoId.ToString('B').ToUpperInvariant())"
+    $file = Join-Path -Path $gpoFolder -ChildPath $RelativePath
+    $current = if (Test-Path -LiteralPath $file) { [System.IO.File]::ReadAllText($file) } else { $null }
+    if ($current -eq $Content) {
+        return $false
+    }
+    if (-not $PSCmdlet.ShouldProcess($file, 'Write policy file and increment GPO version')) {
+        return $false
+    }
+
+    $textEncoding = if ($Encoding -eq 'Unicode') { [System.Text.UnicodeEncoding]::new($false, $true) } else { [System.Text.UTF8Encoding]::new($false) }
+    New-Item -Path (Split-Path -Path $file -Parent) -ItemType Directory -Force | Out-Null
+    [System.IO.File]::WriteAllText($file, $Content, $textEncoding)
+
+    $domainDn = ConvertTo-LabDomainDistinguishedName -DomainName $DomainName
+    $gpoDn = "CN=$($GpoId.ToString('B').ToUpperInvariant()),CN=Policies,CN=System,$domainDn"
+    $attribute = if ($Scope -eq 'Machine') { 'gPCMachineExtensionNames' } else { 'gPCUserExtensionNames' }
+    $adObject = Get-ADObject -Identity $gpoDn -Properties versionNumber, $attribute
+    $increment = if ($Scope -eq 'Machine') { 1 } else { 65536 }
+    $version = [int] $adObject.versionNumber + $increment
+    $extensions = Merge-LabGpoExtensionName -Current ([string] $adObject.$attribute) -Extension $Extension
+    Set-ADObject -Identity $gpoDn -Replace @{ versionNumber = $version; $attribute = $extensions }
+
+    $gptIni = Join-Path -Path $gpoFolder -ChildPath 'GPT.INI'
+    $ini = if (Test-Path -LiteralPath $gptIni) { [System.IO.File]::ReadAllText($gptIni) } else { "[General]`r`nVersion=0`r`n" }
+    $ini = $ini -replace '(?m)^Version=\d+', "Version=$version"
+    [System.IO.File]::WriteAllText($gptIni, $ini, [System.Text.ASCIIEncoding]::new())
+    $true
+}

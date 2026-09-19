@@ -18,6 +18,7 @@ Windows Server 2025 / Active Directory Domain Services lab for a fictional 30-em
 | [01 — Architecture](docs/01-architecture.md) | Topology, component inventory, design decisions |
 | [02 — Network](docs/02-network.md) | VLANs, IP plan, DHCP, DNS, firewall policy |
 | [03 — AD Design](docs/03-ad-design.md) | OU structure, naming conventions, AGDLP, tiering |
+| [04 — Group Policy](docs/04-gpo.md) | GPOs, links, rationale per setting, export/restore |
 | [Infrastructure](infra/README.md) | Packer templates, Terraform VMs on Proxmox VE |
 
 ## Architecture

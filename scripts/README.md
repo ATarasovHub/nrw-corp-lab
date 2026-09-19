@@ -76,3 +76,15 @@ Requires the DHCP relay on RTR01 (VLAN 30 → 10.10.20.11, 10.10.20.12). Check:
 Prerequisites: FS01 joined to the domain (phase 4), groups created by `Import-LabUsers.ps1`, data
 disk attached (Terraform `disk_sizes_gb.fs_data`). Check: `Get-SmbShare`, `Get-FsrmQuota`,
 `(Get-Acl S:\Shares\Finance).Access`.
+
+### Phase 7 — Group Policy
+
+| Step | Where | Command |
+| ---- | ----- | ------- |
+| 1 | DC01 | `.\scripts\GroupPolicy\Set-FineGrainedPasswordPolicy.ps1` |
+| 2 | DC01 | `.\scripts\GroupPolicy\New-LabGpo.ps1 -WhatIf` — review, then run without `-WhatIf` |
+| 3 | DC01 | `.\scripts\GroupPolicy\Export-LabGpo.ps1` — then commit `gpo/` |
+| — | DC01 | rebuild/restore instead of step 2: `.\scripts\GroupPolicy\Import-LabGpo.ps1` |
+
+Check on a client: `gpupdate /force`, `gpresult /r`, drive `G:` maps to the department share.
+Details: [docs/04-gpo.md](../docs/04-gpo.md).

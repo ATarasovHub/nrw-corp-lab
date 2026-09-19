@@ -159,3 +159,87 @@ Describe 'Get-LabAclSignature' {
         (Get-LabAclSignature -Acl $modify) -join ';' | Should -Not -Be ((Get-LabAclSignature -Acl $read) -join ';')
     }
 }
+
+Describe 'Merge-LabGpoExtensionName' {
+    BeforeAll {
+        $script:security = '[{827D319E-6EAC-11D2-A4EA-00C04F79F83A}{803E14A0-B4FB-11D0-A0D0-00A0C90F574B}]'
+        $script:registry = '[{35378EAC-683F-11D2-A89A-00C04FBBCFA2}{D02B1F72-3407-48AE-BA88-E8213C6761F1}]'
+    }
+
+    It 'adds an extension to an empty value' {
+        Merge-LabGpoExtensionName -Current '' -Extension $script:security | Should -Be $script:security
+    }
+
+    It 'sorts extensions by CSE GUID' {
+        Merge-LabGpoExtensionName -Current $script:security -Extension $script:registry | Should -Be ($script:registry + $script:security)
+    }
+
+    It 'is idempotent' {
+        $once = Merge-LabGpoExtensionName -Current $script:registry -Extension $script:security
+        Merge-LabGpoExtensionName -Current $once -Extension $script:security | Should -Be $once
+    }
+
+    It 'merges and sorts tool GUIDs of the same CSE' {
+        $result = Merge-LabGpoExtensionName -Current '[{00000000-0000-0000-0000-000000000000}{BBBBBBBB-0000-0000-0000-000000000000}]' -Extension '[{00000000-0000-0000-0000-000000000000}{AAAAAAAA-0000-0000-0000-000000000000}]'
+        $result | Should -Be '[{00000000-0000-0000-0000-000000000000}{AAAAAAAA-0000-0000-0000-000000000000}{BBBBBBBB-0000-0000-0000-000000000000}]'
+    }
+}
+
+Describe 'ConvertTo-LabSecurityTemplate' {
+    It 'renders header, sorted sections and keys' {
+        $inf = ConvertTo-LabSecurityTemplate -Section @{
+            'System Access'    = @{ PasswordHistorySize = 24; MinimumPasswordLength = 14 }
+            'Group Membership' = @{ '*S-1-5-32-544__Memberof' = '' }
+        }
+        $lines = $inf -split "`r`n"
+        $lines[0] | Should -Be '[Unicode]'
+        $lines | Should -Contain 'signature="$CHICAGO$"'
+        $lines.IndexOf('[Group Membership]') | Should -BeLessThan $lines.IndexOf('[System Access]')
+        $lines.IndexOf('MinimumPasswordLength = 14') | Should -BeLessThan $lines.IndexOf('PasswordHistorySize = 24')
+        $lines | Should -Contain '*S-1-5-32-544__Memberof ='
+    }
+
+    It 'is deterministic' {
+        $section = @{ 'System Access' = @{ LockoutBadCount = 10; LockoutDuration = 15 } }
+        ConvertTo-LabSecurityTemplate -Section $section | Should -BeExactly (ConvertTo-LabSecurityTemplate -Section $section)
+    }
+}
+
+Describe 'ConvertTo-LabDrivesXml' {
+    BeforeAll {
+        $script:drives = @(
+            [pscustomobject]@{ Letter = 'P'; Path = '\FS01\Public'; Label = 'Public'; GroupName = 'NRWCORP\GG-AllStaff'; GroupSid = 'S-1-5-21-1-2-3-1101' }
+            [pscustomobject]@{ Letter = 'G'; Path = '\FS01\R&D'; Label = 'R&D'; GroupName = 'NRWCORP\GG-RnD'; GroupSid = 'S-1-5-21-1-2-3-1102' }
+        )
+    }
+
+    It 'produces valid XML with one Drive per entry' {
+        [xml] $xml = ConvertTo-LabDrivesXml -DriveMap $script:drives
+        $xml.Drives.Drive.Count | Should -Be 2
+    }
+
+    It 'escapes XML special characters' {
+        [xml] $xml = ConvertTo-LabDrivesXml -DriveMap $script:drives
+        ($xml.Drives.Drive | Where-Object { $_.name -eq 'G:' }).Properties.path | Should -Be '\FS01\R&D'
+    }
+
+    It 'targets the drive to the group SID' {
+        [xml] $xml = ConvertTo-LabDrivesXml -DriveMap $script:drives
+        ($xml.Drives.Drive | Where-Object { $_.name -eq 'P:' }).Filters.FilterGroup.sid | Should -Be 'S-1-5-21-1-2-3-1101'
+    }
+
+    It 'is deterministic (stable uid)' {
+        ConvertTo-LabDrivesXml -DriveMap $script:drives | Should -BeExactly (ConvertTo-LabDrivesXml -DriveMap $script:drives)
+    }
+}
+
+Describe 'Resolve-LabGpoLinkTarget' {
+    It 'resolves <Link>' -ForEach @(
+        @{ Link = '@Domain'; Expected = 'DC=ad,DC=nrwcorp,DC=internal' }
+        @{ Link = '@DomainControllers'; Expected = 'OU=Domain Controllers,DC=ad,DC=nrwcorp,DC=internal' }
+        @{ Link = '@Root'; Expected = 'OU=NRW,DC=ad,DC=nrwcorp,DC=internal' }
+        @{ Link = 'Computers/Workstations'; Expected = 'OU=Workstations,OU=Computers,OU=NRW,DC=ad,DC=nrwcorp,DC=internal' }
+    ) {
+        Resolve-LabGpoLinkTarget -Link $Link -RootOu 'NRW' -DomainDistinguishedName 'DC=ad,DC=nrwcorp,DC=internal' | Should -Be $Expected
+    }
+}
