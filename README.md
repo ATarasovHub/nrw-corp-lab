@@ -11,6 +11,14 @@ Windows Server 2025 / Active Directory Domain Services lab for a fictional 30-em
 
 ## Overview
 
+## Documentation
+
+| Document | Content |
+| -------- | ------- |
+| [01 — Architecture](docs/01-architecture.md) | Topology, component inventory, design decisions |
+| [02 — Network](docs/02-network.md) | VLANs, IP plan, DHCP, DNS, firewall policy |
+| [03 — AD Design](docs/03-ad-design.md) | OU structure, naming conventions, AGDLP, tiering |
+
 ## Architecture
 
 ## Features

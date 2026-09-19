@@ -11,6 +11,16 @@ Windows-Server-2025-/Active-Directory-Domain-Services-Lab für ein fiktives Unte
 
 ## Überblick
 
+## Dokumentation
+
+Die technische Dokumentation ist auf Englisch.
+
+| Dokument | Inhalt |
+| -------- | ------ |
+| [01 — Architecture](docs/01-architecture.md) | Topologie, Komponenten, Designentscheidungen |
+| [02 — Network](docs/02-network.md) | VLANs, IP-Plan, DHCP, DNS, Firewall-Regeln |
+| [03 — AD Design](docs/03-ad-design.md) | OU-Struktur, Namenskonventionen, AGDLP, Tiering |
+
 ## Architektur
 
 ## Funktionen
