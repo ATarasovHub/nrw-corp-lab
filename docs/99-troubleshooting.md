@@ -173,12 +173,14 @@ successful restore.
 **Symptoms:** PSScriptAnalyzer 1.25 throws `NullReferenceException` without identifying a code
 finding.
 
-**Cause/status:** this was observed while the project was developed. The workflow analyzes each
-file separately and retries a crash up to three times; a real finding is never ignored.
+**Cause/status:** this was observed while the project was developed. A crash can corrupt the
+analyzer's internal command cache, so an in-process retry is insufficient. CI pins the last stable
+release, PSScriptAnalyzer 1.24.0, until the 1.25 regression is fixed; a real finding is never
+ignored.
 
-**Action:** inspect the named file and rerun the job. If the same file crashes three times, capture
-the module/PowerShell versions from CI and open an upstream reproducer; do not suppress analyzer
-rules globally.
+**Action:** confirm the job imported 1.24.0. If that pinned version crashes, capture the
+module/PowerShell versions and named file from CI and open an upstream reproducer; do not suppress
+analyzer rules globally.
 
 ## Incident log
 
@@ -186,5 +188,5 @@ Add entries while deploying. Keep secrets, raw backup contents and credentials o
 
 | Date | Host/layer | Symptom | Root cause | Durable fix | Evidence |
 | ---- | ---------- | ------- | ---------- | ----------- | -------- |
-| 2026-09-19 | CI | PSScriptAnalyzer intermittently crashed | Analyzer 1.25 parallel-rule race | Per-file analysis with three bounded retries | commits `855e18b`, `b9d6b12`, `5cc56c7` |
+| 2026-09-19 | CI | PSScriptAnalyzer intermittently crashed and poisoned later files | Analyzer 1.25 parallel-rule/command-cache regression | Pin CI to stable 1.24.0 and keep per-file diagnostics | commits `855e18b`, `b9d6b12`, `5cc56c7`; phase-10 CI follow-up |
 | pending | recovery lab | RT-01 not executed | Deployment and backup media required | Run the isolated procedure and update the record | [RT-01](05-backup-restore.md#documented-restore-test-rt-01) |

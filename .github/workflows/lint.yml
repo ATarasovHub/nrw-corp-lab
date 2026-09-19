@@ -21,7 +21,9 @@ jobs:
         shell: pwsh
         run: |
           Set-PSRepository -Name PSGallery -InstallationPolicy Trusted
-          Install-Module -Name PSScriptAnalyzer -Scope CurrentUser -Force
+          # 1.25.0 has a nondeterministic parallel-rule/command-cache crash on this suite.
+          # Pin the last stable release until the upstream regression is fixed.
+          Install-Module -Name PSScriptAnalyzer -RequiredVersion 1.24.0 -Scope CurrentUser -Force
           Get-Module -ListAvailable PSScriptAnalyzer | Select-Object Name, Version
 
       - name: Show versions
@@ -33,28 +35,12 @@ jobs:
       - name: Run PSScriptAnalyzer
         shell: pwsh
         run: |
-          # Analyze file by file so that an analyzer crash names the file instead of aborting the run.
+          Import-Module -Name PSScriptAnalyzer -RequiredVersion 1.24.0
           $files = Get-ChildItem -Path . -Recurse -File -Include *.ps1, *.psm1, *.psd1
           $results = [System.Collections.Generic.List[object]]::new()
-          $crashes = [System.Collections.Generic.List[string]]::new()
           foreach ($f in $files) {
-              $relative = [System.IO.Path]::GetRelativePath($PWD, $f.FullName) -replace '\\', '/'
-              # PSScriptAnalyzer 1.25 occasionally throws a NullReferenceException (race between
-              # rules running in parallel); a crashing file is retried before it counts as failed.
-              for ($attempt = 1; $attempt -le 3; $attempt++) {
-                  try {
-                      Invoke-ScriptAnalyzer -Path $f.FullName -Settings ./PSScriptAnalyzerSettings.psd1 -ErrorAction Stop |
-                          ForEach-Object { $results.Add($_) }
-                      break
-                  } catch {
-                      Write-Output "Attempt $attempt on ${relative}: $($_.Exception.Message)"
-                      if ($attempt -eq 3) {
-                          $crashes.Add($relative)
-                          Write-Output "::error file=$relative::PSScriptAnalyzer crashed: $($_.Exception.Message)"
-                          Write-Output $_.Exception.ToString()
-                      }
-                  }
-              }
+              Invoke-ScriptAnalyzer -Path $f.FullName -Settings ./PSScriptAnalyzerSettings.psd1 |
+                  ForEach-Object { $results.Add($_) }
           }
           if ($results.Count -gt 0) {
               $results | Format-Table -AutoSize RuleName, Severity, ScriptName, Line, Message | Out-String -Width 4096
@@ -62,9 +48,7 @@ jobs:
                   $file = [System.IO.Path]::GetRelativePath($PWD, $r.ScriptPath) -replace '\\', '/'
                   Write-Output "::error file=$file,line=$($r.Line)::[$($r.RuleName)] $($r.Message)"
               }
-          }
-          if ($results.Count -gt 0 -or $crashes.Count -gt 0) {
-              throw "PSScriptAnalyzer: $($results.Count) finding(s), $($crashes.Count) crash(es) in $($files.Count) files."
+              throw "PSScriptAnalyzer: $($results.Count) finding(s) in $($files.Count) files."
           }
           Write-Output "PSScriptAnalyzer: no findings in $($files.Count) files."
 
