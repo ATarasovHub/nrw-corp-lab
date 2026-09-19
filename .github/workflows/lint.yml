@@ -37,3 +37,54 @@ jobs:
               throw "PSScriptAnalyzer reported $(@($results).Count) finding(s)."
           }
           Write-Output 'PSScriptAnalyzer: no findings.'
+
+  terraform:
+    name: Terraform
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: infra/terraform
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Terraform
+        uses: hashicorp/setup-terraform@v3
+
+      - name: Format
+        run: terraform fmt -check -recursive -diff
+
+      - name: Init
+        run: terraform init -backend=false -input=false
+
+      - name: Validate
+        run: terraform validate
+
+  packer:
+    name: Packer
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: infra/packer/windows-server-2025
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Packer
+        uses: hashicorp/setup-packer@main
+
+      - name: Format
+        run: packer fmt -check -recursive -diff .
+
+      - name: Init
+        run: packer init .
+
+      - name: Validate
+        # Dummy secrets only satisfy required variables; nothing connects to Proxmox.
+        run: |
+          cp windows-server-2025.pkrvars.hcl.example ci.pkrvars.hcl
+          packer validate \
+            -var-file=ci.pkrvars.hcl \
+            -var proxmox_token=ci-placeholder \
+            -var admin_password=ci-placeholder \
+            .

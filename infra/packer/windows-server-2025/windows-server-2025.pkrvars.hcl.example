@@ -1,0 +1,15 @@
+# Copy to windows-server-2025.pkrvars.hcl (git-ignored) and adjust.
+# Secrets are passed as environment variables instead:
+#   PKR_VAR_proxmox_token   API token secret
+#   PKR_VAR_admin_password  build-time Administrator password
+
+proxmox_url                      = "https://pve01.example.internal:8006/api2/json"
+proxmox_username                 = "packer@pve!packer"
+proxmox_insecure_skip_tls_verify = true
+proxmox_node                     = "pve01"
+
+windows_iso_file = "local:iso/26100.1742.240906-0331.ge_release_svc_refresh_SERVER_EVAL_x64FRE_en-us.iso"
+virtio_iso_file  = "local:iso/virtio-win.iso"
+iso_storage_pool = "local"
+storage_pool     = "local-lvm"
+bridge           = "vmbr0"

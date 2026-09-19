@@ -1,0 +1,51 @@
+#cloud-config
+# Ubuntu member server baseline for nrw-corp-lab.
+# Rendered by Terraform (infra/terraform/main.tf) and uploaded as a Proxmox snippet.
+# Network configuration (static IP, DNS) comes from the Proxmox cloud-init drive, not from this file.
+
+hostname: ${hostname}
+fqdn: ${hostname}.${domain}
+manage_etc_hosts: true
+timezone: Europe/Berlin
+locale: en_US.UTF-8
+keyboard:
+  layout: de
+
+users:
+  - name: ${admin_username}
+    gecos: Lab administrator
+    groups: [adm, sudo]
+    shell: /bin/bash
+    sudo: "ALL=(ALL) NOPASSWD:ALL"
+    lock_passwd: true
+    ssh_authorized_keys: ${jsonencode(ssh_public_keys)}
+
+disable_root: true
+ssh_pwauth: false
+
+package_update: true
+package_upgrade: true
+packages:
+  - qemu-guest-agent
+  - chrony
+  - unattended-upgrades
+  # Prerequisites for joining the AD domain with realmd/SSSD in a later phase.
+  - realmd
+  - sssd
+  - sssd-tools
+  - adcli
+  - krb5-user
+  - packagekit
+
+# Kerberos tolerates at most 5 minutes of clock skew: sync time from the domain controllers.
+write_files:
+  - path: /etc/chrony/sources.d/ad-domain-controllers.sources
+    permissions: "0644"
+    content: |
+%{ for server in ntp_servers ~}
+      server ${server} iburst
+%{ endfor ~}
+
+runcmd:
+  - [systemctl, enable, --now, qemu-guest-agent]
+  - [systemctl, restart, chrony]

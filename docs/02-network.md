@@ -30,20 +30,21 @@ Network design for nrw-corp-lab. Rationale for segmentation is in
 | 999  | BLACKHOLE | —               | —            | —                   | —                  |
 
 VLAN 999 is the native/default VLAN on the trunk and carries no traffic; untagged frames are dropped.
-RTR01's WAN interface is attached to a separate external Hyper-V switch (untagged) and receives its
-address from the upstream network.
+All lab VLANs share the VLAN-aware Proxmox bridge `vmbr1`. RTR01's WAN interface is attached to
+`vmbr0` (untagged) and receives its address from the upstream network.
 
 ## Static Addresses
 
 | Host   | VLAN | IP address   | Notes                                  |
 | ------ | ---- | ------------ | -------------------------------------- |
 | RTR01  | 10   | 10.10.10.1   | Gateway, web UI reachable only from MGMT |
-| HV01   | 10   | 10.10.10.5   | Hyper-V host management vNIC           |
+| PVE01  | 10   | 10.10.10.5   | Proxmox VE host management interface   |
 | MGMT01 | 10   | 10.10.10.10  | Admin workstation                      |
 | RTR01  | 20   | 10.10.20.1   | Gateway                                |
 | DC01   | 20   | 10.10.20.11  | AD DS, DNS, DHCP, PDC emulator         |
 | DC02   | 20   | 10.10.20.12  | AD DS, DNS, DHCP                       |
 | FS01   | 20   | 10.10.20.21  | File server                            |
+| LNX01  | 20   | 10.10.20.31  | Ubuntu member server                   |
 | RTR01  | 30   | 10.10.30.1   | Gateway, DHCP relay                    |
 | RTR01  | 40   | 10.10.40.1   | Gateway, DHCP server for guests        |
 

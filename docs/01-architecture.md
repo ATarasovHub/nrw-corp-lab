@@ -32,7 +32,7 @@ Related documents:
 flowchart TB
     internet((Internet))
 
-    subgraph host["Hyper-V host HV01"]
+    subgraph host["Proxmox VE host PVE01"]
         rtr["RTR01<br/>OPNsense<br/>router / firewall / DNS resolver"]
 
         subgraph v10["VLAN 10 · MGMT · 10.10.10.0/24"]
@@ -43,6 +43,7 @@ flowchart TB
             dc01["DC01<br/>AD DS · DNS · DHCP<br/>FSMO · GC<br/>10.10.20.11"]
             dc02["DC02<br/>AD DS · DNS · DHCP<br/>GC<br/>10.10.20.12"]
             fs01["FS01<br/>file server<br/>10.10.20.21"]
+            lnx01["LNX01<br/>Ubuntu 24.04<br/>10.10.20.31"]
         end
 
         subgraph v30["VLAN 30 · CLIENTS · 10.10.30.0/24"]
@@ -67,25 +68,27 @@ flowchart TB
     ws002 -. "DHCP relay" .-> rtr
 ```
 
-All VMs are attached to a single Hyper-V virtual switch. Each VM network adapter is tagged with
-its VLAN ID; RTR01 receives a trunk carrying all VLANs and is the only device that routes between
+All lab VMs are attached to one VLAN-aware Linux bridge (`vmbr1`). Each VM network adapter is
+tagged with its VLAN ID; RTR01 receives a trunk carrying all VLANs and is the only device that routes between
 them. Inter-VLAN traffic is therefore always subject to firewall rules
-(see [02 — Network](02-network.md#inter-vlan-firewall-policy)).
+(see [02 — Network](02-network.md#inter-vlan-firewall-policy)). RTR01's WAN interface sits on a
+second bridge (`vmbr0`) with upstream connectivity.
 
 ## Component Inventory
 
 | Host   | Role                                      | OS                                  | VLAN | vCPU | RAM   | Disk   |
 | ------ | ----------------------------------------- | ----------------------------------- | ---- | ---- | ----- | ------ |
-| HV01   | Hyper-V host (physical)                   | Windows 11 Pro / Server 2025        | 10   | —    | ≥32 GB | ≥500 GB SSD |
-| RTR01  | Router, firewall, DNS resolver, DHCP relay | OPNsense                           | all  | 1    | 2 GB  | 20 GB  |
+| PVE01  | Hypervisor (physical)                     | Proxmox VE 8                        | 10   | —    | ≥32 GB | ≥500 GB SSD |
+| RTR01  | Router, firewall, DNS resolver, DHCP relay | OPNsense                           | all  | 2    | 2 GB  | 20 GB  |
 | DC01   | AD DS, DNS, DHCP, all FSMO roles, GC      | Windows Server 2025 Standard (Core) | 20   | 2    | 3 GB  | 60 GB  |
 | DC02   | AD DS, DNS, DHCP (failover partner), GC   | Windows Server 2025 Standard (Core) | 20   | 2    | 3 GB  | 60 GB  |
 | FS01   | File server (departmental shares)         | Windows Server 2025 Standard (Core) | 20   | 2    | 3 GB  | 60 GB + 100 GB data |
+| LNX01  | Linux member server (SSSD, monitoring)    | Ubuntu Server 24.04 LTS             | 20   | 2    | 2 GB  | 32 GB  |
 | MGMT01 | Admin workstation, RSAT, GPMC             | Windows Server 2025 (Desktop Exp.)  | 10   | 2    | 4 GB  | 60 GB  |
 | WS001  | Domain-joined client                      | Windows 11 Enterprise (eval)        | 30   | 2    | 4 GB  | 64 GB  |
 | WS002  | Domain-joined client                      | Windows 11 Enterprise (eval)        | 30   | 2    | 4 GB  | 64 GB  |
 
-Total guest footprint: 15 vCPU, ~23 GB RAM. The 30 employees exist as AD objects; two client
+Total guest footprint: 16 vCPU, ~25 GB RAM. The 30 employees exist as AD objects; two client
 VMs are enough to demonstrate logon, GPO application and share access.
 
 ## Design Decisions
@@ -187,9 +190,35 @@ hard-coded in scripts. VM provisioning is kept separate in `infra/`.
 **Consequences.** Configuration changes are data changes that can be reviewed in a pull
 request. Scripts are linted with PSScriptAnalyzer and tested with Pester in CI.
 
+### D8 — Proxmox VE, Packer and Terraform
+
+**Context.** The lab must be rebuildable from scratch without clicking through installers.
+
+**Decision.** Run the lab on Proxmox VE. Packer builds sysprepped Windows Server 2025
+templates (Core and Desktop Experience) from the official ISO with an `autounattend.xml`;
+Terraform (`bpg/proxmox` provider) clones them and creates all VMs. Per-VM settings — hostname,
+static IP, DNS servers, Administrator password — are passed through the Proxmox cloud-init drive
+and applied by Cloudbase-Init on Windows and cloud-init on Ubuntu.
+
+**Consequences.**
+
+- One command per layer: `packer build` for images, `terraform apply` for VMs.
+- Templates are immutable; configuration drift is fixed by rebuilding, not patching by hand.
+- Proxmox is free, supports VLAN-aware bridges and has a mature Terraform provider.
+- OPNsense is still installed interactively from ISO; its configuration is documented instead.
+- Details and usage: [infra/README.md](../infra/README.md).
+
+### D9 — A Linux member server
+
+**Decision.** Add LNX01 (Ubuntu 24.04 LTS, provisioned with cloud-init) to the SERVERS VLAN.
+
+**Consequences.** Demonstrates that the AD design works for heterogeneous environments
+(Kerberos, SSSD, DNS, time sync), which is the norm in German mid-sized companies. It is also
+the natural host for monitoring in a later phase.
+
 ## Deployment Order
 
-1. Host: Hyper-V role, virtual switch, VMs (`infra/`).
+1. Host: Proxmox bridges; Packer builds the Windows templates, Terraform creates all VMs (`infra/`).
 2. RTR01: VLAN interfaces, firewall rules, DHCP relay, DNS resolver.
 3. DC01: network configuration, AD DS forest, DNS zones, DHCP.
 4. DC02: promotion as additional DC, DHCP failover.

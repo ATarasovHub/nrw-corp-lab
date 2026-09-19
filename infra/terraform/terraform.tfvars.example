@@ -1,0 +1,55 @@
+# Copy to terraform.tfvars (git-ignored) and adjust.
+# Secrets are passed as environment variables, never stored in this file:
+#   PROXMOX_VE_API_TOKEN            terraform@pve!terraform=<secret>
+#   TF_VAR_windows_admin_password   local Administrator password for all Windows VMs
+
+# --- Proxmox -----------------------------------------------------------------
+proxmox_endpoint     = "https://pve01.example.internal:8006/"
+proxmox_insecure     = true
+proxmox_ssh_username = "root"
+proxmox_node         = "pve01"
+
+datastore_vm    = "local-lvm"
+datastore_files = "local"
+bridge_lan      = "vmbr1"
+bridge_wan      = "vmbr0"
+
+# --- Network (docs/02-network.md) --------------------------------------------
+network_prefix = "10.10"
+ad_domain      = "ad.nrwcorp.internal"
+
+vlan_ids = {
+  mgmt    = 10
+  servers = 20
+  clients = 30
+  guest   = 40
+}
+
+# --- Sizing ------------------------------------------------------------------
+client_count  = 2
+linux_count   = 1
+start_clients = false
+
+disk_sizes_gb = {
+  dc      = 60
+  fs_os   = 60
+  fs_data = 100
+  mgmt    = 60
+  client  = 64
+  linux   = 32
+  router  = 20
+}
+
+# --- Templates and images ----------------------------------------------------
+windows_core_template_id    = 9000
+windows_desktop_template_id = 9001
+# windows_client_template_id = 9010  # Windows 11 template; defaults to the Desktop Experience template
+
+deploy_router        = true
+opnsense_iso_file_id = "local:iso/OPNsense-dvd-amd64.iso"
+
+# --- Linux access ------------------------------------------------------------
+linux_admin_username = "labadmin"
+ssh_public_keys = [
+  "ssh-ed25519 AAAA... admin@mgmt01",
+]

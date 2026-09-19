@@ -62,6 +62,7 @@ ad.nrwcorp.internal
     │   └── Staging                         default location for new computers
     ├── Servers
     │   ├── FileServers
+    │   ├── LinuxServers                    SSSD-joined Linux hosts
     │   └── MemberServers
     ├── ServiceAccounts                     gMSAs
     └── Disabled
@@ -164,6 +165,7 @@ NetBIOS names are limited to 15 characters.
 | Type                  | Pattern      | Examples                 |
 | --------------------- | ------------ | ------------------------ |
 | Server                | `<ROLE><nn>` | `DC01`, `DC02`, `FS01`   |
+| Linux server          | `LNX<nn>`    | `LNX01`                  |
 | Admin workstation     | `MGMT<nn>`   | `MGMT01`                 |
 | Employee workstation  | `WS<nnn>`    | `WS001`, `WS002`         |
 | Printer               | `PRN<nn>`    | `PRN01`                  |
